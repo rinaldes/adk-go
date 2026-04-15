@@ -1,4 +1,4 @@
-module google.golang.org/adk
+module github.com/rinaldes/adk-go
 
 go 1.25.0
 
