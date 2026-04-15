@@ -15,6 +15,7 @@ import (
 
 	"google.golang.org/genai"
 
+	"github.com/rinaldes/adk-go/internal/llminternal"
 	"github.com/rinaldes/adk-go/model"
 )
 
@@ -157,6 +158,7 @@ func (m *ollamaModel) generate(ctx context.Context, modelName string, messages [
 }
 
 func (m *ollamaModel) generateStream(ctx context.Context, modelName string, messages []openAIMessage) iter.Seq2[*model.LLMResponse, error] {
+	aggregator := llminternal.NewStreamingResponseAggregator()
 	return func(yield func(*model.LLMResponse, error) bool) {
 		chatReq := openAIChatRequest{
 			Model:    modelName,
@@ -193,7 +195,6 @@ func (m *ollamaModel) generateStream(ctx context.Context, modelName string, mess
 		}
 
 		scanner := bufio.NewScanner(resp.Body)
-		var fullContent strings.Builder
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -203,16 +204,7 @@ func (m *ollamaModel) generateStream(ctx context.Context, modelName string, mess
 
 			data := strings.TrimPrefix(line, "data: ")
 			if data == "[DONE]" {
-				// Final response with complete content
-				finalResp := &model.LLMResponse{
-					Content: &genai.Content{
-						Role:  "model",
-						Parts: []*genai.Part{{Text: fullContent.String()}},
-					},
-					TurnComplete: true,
-				}
-				yield(finalResp, nil)
-				return
+				break
 			}
 
 			var streamResp openAIChatStreamResponse
@@ -224,39 +216,59 @@ func (m *ollamaModel) generateStream(ctx context.Context, modelName string, mess
 				continue
 			}
 
+			// Convert OpenAI stream chunk to genai.GenerateContentResponse
 			choice := streamResp.Choices[0]
-			if choice.Delta.Content != "" {
-				fullContent.WriteString(choice.Delta.Content)
-				partialResp := &model.LLMResponse{
-					Content: &genai.Content{
-						Role:  "model",
-						Parts: []*genai.Part{{Text: choice.Delta.Content}},
-					},
-					Partial: true,
+			genResp := openAIStreamToGenaiResponse(&streamResp, choice)
+
+			// Process through aggregator
+			for llmResponse, err := range aggregator.ProcessResponse(ctx, genResp) {
+				if err != nil {
+					yield(nil, err)
+					return
 				}
-				if !yield(partialResp, nil) {
+				if !yield(llmResponse, nil) {
 					return
 				}
 			}
 
+			// If finish reason is set, we're done
 			if choice.FinishReason != "" {
-				finishReason := convertFinishReason(choice.FinishReason)
-				finalResp := &model.LLMResponse{
-					Content: &genai.Content{
-						Role:  "model",
-						Parts: []*genai.Part{{Text: fullContent.String()}},
-					},
-					FinishReason: finishReason,
-					TurnComplete: true,
-				}
-				yield(finalResp, nil)
-				return
+				break
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
 			yield(nil, fmt.Errorf("stream error: %w", err))
+			return
 		}
+
+		// Yield final aggregated response
+		if finalResp := aggregator.Close(); finalResp != nil {
+			yield(finalResp, nil)
+		}
+	}
+}
+
+// openAIStreamToGenaiResponse converts an OpenAI stream chunk to genai.GenerateContentResponse.
+func openAIStreamToGenaiResponse(streamResp *openAIChatStreamResponse, choice streamChoice) *genai.GenerateContentResponse {
+	content := &genai.Content{
+		Role: genai.RoleModel,
+	}
+	if choice.Delta.Content != "" {
+		content.Parts = []*genai.Part{{Text: choice.Delta.Content}}
+	}
+
+	finishReason := genai.FinishReasonUnspecified
+	if choice.FinishReason != "" {
+		finishReason = convertFinishReason(choice.FinishReason)
+	}
+
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{{
+			Content:      content,
+			FinishReason: finishReason,
+		}},
+		ModelVersion: streamResp.Model,
 	}
 }
 
