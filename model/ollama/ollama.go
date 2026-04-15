@@ -41,10 +41,11 @@ type ollamaModel struct {
 
 // openAIChatRequest represents the request body for OpenAI chat completions API.
 type openAIChatRequest struct {
-	Model    string          `json:"model"`
-	Messages []openAIMessage `json:"messages"`
-	Tools    []openAITool    `json:"tools,omitempty"`
-	Stream   bool            `json:"stream"`
+	Model      string          `json:"model"`
+	Messages   []openAIMessage `json:"messages"`
+	Tools      []openAITool    `json:"tools,omitempty"`
+	ToolChoice string          `json:"tool_choice,omitempty"`
+	Stream     bool            `json:"stream"`
 }
 
 type openAITool struct {
@@ -158,11 +159,17 @@ func (m *ollamaModel) generate(ctx context.Context, modelName string, messages [
 		Tools:    tools,
 		Stream:   false,
 	}
+	if len(tools) > 0 {
+		chatReq.ToolChoice = "auto"
+	}
 
 	body, err := json.Marshal(chatReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
+
+	// Debug: print request
+	fmt.Printf("[OLLAMA REQUEST] %s\n", string(body))
 
 	url := fmt.Sprintf("%s/v1/chat/completions", m.baseURL)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
@@ -187,6 +194,10 @@ func (m *ollamaModel) generate(ctx context.Context, modelName string, messages [
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	// Debug: print response
+	respJSON, _ := json.Marshal(chatResp)
+	fmt.Printf("[OLLAMA RESPONSE] %s\n", string(respJSON))
+
 	if len(chatResp.Choices) == 0 {
 		return nil, fmt.Errorf("empty response from ollama")
 	}
@@ -202,6 +213,9 @@ func (m *ollamaModel) generateStream(ctx context.Context, modelName string, mess
 			Messages: messages,
 			Tools:    tools,
 			Stream:   true,
+		}
+		if len(tools) > 0 {
+			chatReq.ToolChoice = "auto"
 		}
 
 		body, err := json.Marshal(chatReq)
@@ -306,21 +320,66 @@ func convertContentsToMessages(contents []*genai.Content) []openAIMessage {
 			continue
 		}
 		role := content.Role
-		if role == "model" {
-			role = "assistant"
+
+		// Handle user messages with function responses (FunctionResponse)
+		if role == "user" {
+			for _, part := range content.Parts {
+				if part.FunctionResponse != nil {
+					// Convert function response to tool message
+					resultJSON, _ := json.Marshal(part.FunctionResponse.Response)
+					messages = append(messages, openAIMessage{
+						Role:       "tool",
+						ToolCallID: part.FunctionResponse.ID,
+						Content:    string(resultJSON),
+					})
+				} else if part.Text != "" {
+					messages = append(messages, openAIMessage{
+						Role:    "user",
+						Content: part.Text,
+					})
+				}
+			}
+			continue
 		}
 
-		var textParts []string
-		for _, part := range content.Parts {
-			if part.Text != "" {
-				textParts = append(textParts, part.Text)
+		// Handle model/assistant messages
+		if role == "model" {
+			msg := openAIMessage{Role: "assistant"}
+			var textParts []string
+			var toolCalls []openAIToolCall
+
+			for _, part := range content.Parts {
+				if part.Text != "" {
+					textParts = append(textParts, part.Text)
+				}
+				if part.FunctionCall != nil {
+					// Convert function call to tool call
+					argsJSON, _ := json.Marshal(part.FunctionCall.Args)
+					toolCalls = append(toolCalls, openAIToolCall{
+						ID:   part.FunctionCall.ID,
+						Type: "function",
+						Function: struct {
+							Name      string `json:"name"`
+							Arguments string `json:"arguments"`
+						}{
+							Name:      part.FunctionCall.Name,
+							Arguments: string(argsJSON),
+						},
+					})
+				}
 			}
-		}
-		if len(textParts) > 0 {
-			messages = append(messages, openAIMessage{
-				Role:    role,
-				Content: strings.Join(textParts, "\n"),
-			})
+
+			if len(textParts) > 0 {
+				msg.Content = strings.Join(textParts, "\n")
+			}
+			if len(toolCalls) > 0 {
+				msg.ToolCalls = toolCalls
+			}
+
+			// Only add message if it has content or tool calls
+			if msg.Content != "" || len(msg.ToolCalls) > 0 {
+				messages = append(messages, msg)
+			}
 		}
 	}
 	return messages
