@@ -30,7 +30,21 @@ type ollamaModel struct {
 type openAIChatRequest struct {
 	Model    string          `json:"model"`
 	Messages []openAIMessage `json:"messages"`
+	Tools    []openAITool    `json:"tools,omitempty"`
 	Stream   bool            `json:"stream"`
+}
+
+// openAITool represents a tool in OpenAI format.
+type openAITool struct {
+	Type     string             `json:"type"`
+	Function openAIFunctionSpec `json:"function"`
+}
+
+// openAIFunctionSpec represents function specification in OpenAI format.
+type openAIFunctionSpec struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
 // openAIMessage represents a message in OpenAI format.
@@ -58,11 +72,22 @@ type openAIChatStreamResponse struct {
 	Choices []streamChoice `json:"choices"`
 }
 
+// openAIToolCall represents a tool call in OpenAI format.
+type openAIToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
 type choice struct {
 	Index   int `json:"index"`
 	Message struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
+		Role      string           `json:"role"`
+		Content   string           `json:"content"`
+		ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
 	} `json:"message"`
 	FinishReason string `json:"finish_reason"`
 }
@@ -70,8 +95,9 @@ type choice struct {
 type streamChoice struct {
 	Index int `json:"index"`
 	Delta struct {
-		Role    string `json:"role,omitempty"`
-		Content string `json:"content,omitempty"`
+		Role      string           `json:"role,omitempty"`
+		Content   string           `json:"content,omitempty"`
+		ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
 	} `json:"delta"`
 	FinishReason string `json:"finish_reason"`
 }
@@ -105,20 +131,22 @@ func (m *ollamaModel) GenerateContent(ctx context.Context, req *model.LLMRequest
 	m.maybeAppendUserContent(req)
 	modelName := m.modelName(req)
 	messages := convertContentsToMessages(req.Contents)
+	tools := convertTools(req.Config)
 
 	if stream {
-		return m.generateStream(ctx, modelName, messages)
+		return m.generateStream(ctx, modelName, messages, tools)
 	}
 	return func(yield func(*model.LLMResponse, error) bool) {
-		resp, err := m.generate(ctx, modelName, messages)
+		resp, err := m.generate(ctx, modelName, messages, tools)
 		yield(resp, err)
 	}
 }
 
-func (m *ollamaModel) generate(ctx context.Context, modelName string, messages []openAIMessage) (*model.LLMResponse, error) {
+func (m *ollamaModel) generate(ctx context.Context, modelName string, messages []openAIMessage, tools []openAITool) (*model.LLMResponse, error) {
 	chatReq := openAIChatRequest{
 		Model:    modelName,
 		Messages: messages,
+		Tools:    tools,
 		Stream:   false,
 	}
 
@@ -157,12 +185,13 @@ func (m *ollamaModel) generate(ctx context.Context, modelName string, messages [
 	return convertOpenAIResponseToLLMResponse(&chatResp), nil
 }
 
-func (m *ollamaModel) generateStream(ctx context.Context, modelName string, messages []openAIMessage) iter.Seq2[*model.LLMResponse, error] {
+func (m *ollamaModel) generateStream(ctx context.Context, modelName string, messages []openAIMessage, tools []openAITool) iter.Seq2[*model.LLMResponse, error] {
 	aggregator := llminternal.NewStreamingResponseAggregator()
 	return func(yield func(*model.LLMResponse, error) bool) {
 		chatReq := openAIChatRequest{
 			Model:    modelName,
 			Messages: messages,
+			Tools:    tools,
 			Stream:   true,
 		}
 
@@ -315,6 +344,44 @@ func convertContentsToMessages(contents []*genai.Content) []openAIMessage {
 	return messages
 }
 
+func convertTools(cfg *genai.GenerateContentConfig) []openAITool {
+	if cfg == nil || len(cfg.Tools) == 0 {
+		return nil
+	}
+
+	var tools []openAITool
+	for _, tool := range cfg.Tools {
+		if tool == nil {
+			continue
+		}
+		for _, decl := range tool.FunctionDeclarations {
+			if decl == nil {
+				continue
+			}
+			tools = append(tools, convertFunctionDeclaration(decl))
+		}
+	}
+	return tools
+}
+
+func convertFunctionDeclaration(decl *genai.FunctionDeclaration) openAITool {
+	spec := openAIFunctionSpec{
+		Name:        decl.Name,
+		Description: decl.Description,
+	}
+
+	// Convert parameters schema to JSON
+	if decl.Parameters != nil {
+		schemaJSON, _ := json.Marshal(decl.Parameters)
+		spec.Parameters = schemaJSON
+	}
+
+	return openAITool{
+		Type:     "function",
+		Function: spec,
+	}
+}
+
 func convertOpenAIResponseToLLMResponse(resp *openAIChatResponse) *model.LLMResponse {
 	if len(resp.Choices) == 0 {
 		return &model.LLMResponse{
@@ -325,8 +392,29 @@ func convertOpenAIResponseToLLMResponse(resp *openAIChatResponse) *model.LLMResp
 
 	choice := resp.Choices[0]
 	content := &genai.Content{
-		Role:  "model",
-		Parts: []*genai.Part{{Text: choice.Message.Content}},
+		Role: "model",
+	}
+
+	// Handle text content
+	if choice.Message.Content != "" {
+		content.Parts = append(content.Parts, &genai.Part{Text: choice.Message.Content})
+	}
+
+	// Handle tool calls
+	for _, tc := range choice.Message.ToolCalls {
+		if tc.Type == "function" {
+			args := make(map[string]any)
+			// Parse arguments JSON
+			_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
+
+			content.Parts = append(content.Parts, &genai.Part{
+				FunctionCall: &genai.FunctionCall{
+					Name: tc.Function.Name,
+					Args: args,
+					ID:   tc.ID,
+				},
+			})
+		}
 	}
 
 	finishReason := convertFinishReason(choice.FinishReason)
