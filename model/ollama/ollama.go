@@ -48,7 +48,7 @@ func NewModel(ctx context.Context, modelName string, cfg *genai.ClientConfig) (m
 	}
 
 	if client.ClientConfig().HTTPClient != nil {
-		client.ClientConfig().HTTPClient.Transport = &mergeHeadersInterceptor{
+		client.ClientConfig().HTTPClient.Transport = &debugTransport{
 			base: client.ClientConfig().HTTPClient.Transport,
 		}
 	}
@@ -150,16 +150,16 @@ type mergeHeadersInterceptor struct {
 	base http.RoundTripper
 }
 
-func (h *mergeHeadersInterceptor) RoundTrip(req *http.Request) (*http.Response, error) {
-	for _, headerName := range []string{"x-goog-api-client", "user-agent"} {
-		if values := req.Header.Values(headerName); len(values) > 0 {
-			req.Header.Set(headerName, strings.Join(values, " "))
-		}
-	}
-	if h.base == nil {
+type debugTransport struct {
+	base http.RoundTripper
+}
+
+func (d *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	fmt.Printf(">>> SDK is calling: %s %s\n", req.Method, req.URL.String())
+	if d.base == nil {
 		return http.DefaultTransport.RoundTrip(req)
 	}
-	return h.base.RoundTrip(req)
+	return d.base.RoundTrip(req)
 }
 
 func (m *geminiModel) GetGoogleLLMVariant() genai.Backend {
