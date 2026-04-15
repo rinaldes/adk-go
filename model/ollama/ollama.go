@@ -13,127 +13,276 @@
 // limitations under the License.
 
 // Package ollama implements the [model.LLM] interface for Ollama models.
-// It uses the genai client configured to talk to Ollama's OpenAI-compatible API.
+// It uses Ollama's OpenAI-compatible API endpoint (/v1/chat/completions).
 package ollama
 
 import (
+	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"iter"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 
 	"google.golang.org/genai"
 
 	"github.com/rinaldes/adk-go/internal/llminternal"
-	"github.com/rinaldes/adk-go/internal/llminternal/converters"
-	"github.com/rinaldes/adk-go/internal/llminternal/googlellm"
-	"github.com/rinaldes/adk-go/internal/version"
 	"github.com/rinaldes/adk-go/model"
 )
 
-// TODO: test coverage
 type ollamaModel struct {
-	client             *genai.Client
-	name               string
-	versionHeaderValue string
+	client  *http.Client
+	baseURL string
+	name    string
 }
 
-// NewModel returns [model.LLM], backed by Ollama's API.
-//
-// It uses the provided context and configuration to initialize the underlying
-// [genai.Client] pointing to Ollama's OpenAI-compatible endpoint.
-// The modelName specifies which Ollama model to target (e.g., "llama3.2").
-//
-// An error is returned if the [genai.Client] fails to initialize.
-func NewModel(ctx context.Context, modelName string, cfg *genai.ClientConfig) (model.LLM, error) {
-	// Create a copy of the config to avoid mutating the caller's config
-	// or the underlying http.Client.
-	if cfg == nil {
-		cfg = &genai.ClientConfig{}
-	}
-	cfgCopy := *cfg
-	if cfg.HTTPClient != nil {
-		clientCopy := *cfg.HTTPClient
-		cfgCopy.HTTPClient = &clientCopy
-	}
+// openAIChatRequest represents the request body for OpenAI chat completions API.
+type openAIChatRequest struct {
+	Model    string          `json:"model"`
+	Messages []openAIMessage `json:"messages"`
+	Tools    []openAITool    `json:"tools,omitempty"`
+	Stream   bool            `json:"stream"`
+}
 
-	// Configure for Ollama
-	cfgCopy.Backend = genai.BackendGeminiAPI
-	cfgCopy.APIKey = "ollama"
-	if cfgCopy.HTTPOptions.BaseURL == "" {
-		cfgCopy.HTTPOptions.BaseURL = ollamaBaseURL()
-	}
-	cfg = &cfgCopy
+type openAITool struct {
+	Type     string             `json:"type"`
+	Function openAIFunctionSpec `json:"function"`
+}
 
-	client, err := genai.NewClient(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
+type openAIFunctionSpec struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
+}
 
-	if client.ClientConfig().HTTPClient != nil {
-		client.ClientConfig().HTTPClient.Transport = &mergeHeadersInterceptor{
-			base: client.ClientConfig().HTTPClient.Transport,
-		}
-	}
+type openAIMessage struct {
+	Role       string           `json:"role"`
+	Content    string           `json:"content"`
+	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string           `json:"tool_call_id,omitempty"`
+}
 
-	// Create header value once, when the model is created
-	headerValue := fmt.Sprintf("google-adk/%s gl-go/%s", version.Version,
-		strings.TrimPrefix(runtime.Version(), "go"))
+type openAIToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
 
+type openAIChatResponse struct {
+	ID      string   `json:"id"`
+	Object  string   `json:"object"`
+	Created int64    `json:"created"`
+	Model   string   `json:"model"`
+	Choices []choice `json:"choices"`
+	Usage   usage    `json:"usage"`
+}
+
+type choice struct {
+	Index   int `json:"index"`
+	Message struct {
+		Role      string           `json:"role"`
+		Content   string           `json:"content"`
+		ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
+	} `json:"message"`
+	FinishReason string `json:"finish_reason"`
+}
+
+type streamChoice struct {
+	Index int `json:"index"`
+	Delta struct {
+		Role      string           `json:"role,omitempty"`
+		Content   string           `json:"content,omitempty"`
+		ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
+	} `json:"delta"`
+	FinishReason string `json:"finish_reason"`
+}
+
+type openAIChatStreamResponse struct {
+	ID      string         `json:"id"`
+	Object  string         `json:"object"`
+	Created int64          `json:"created"`
+	Model   string         `json:"model"`
+	Choices []streamChoice `json:"choices"`
+}
+
+type usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+}
+
+// NewModel creates a new Ollama model client.
+func NewModel(ctx context.Context, modelName string, _ *genai.ClientConfig) (model.LLM, error) {
+	baseURL := ollamaBaseURL()
 	return &ollamaModel{
-		name:               modelName,
-		client:             client,
-		versionHeaderValue: headerValue,
+		client:  &http.Client{},
+		baseURL: baseURL,
+		name:    modelName,
 	}, nil
 }
 
 func ollamaBaseURL() string {
 	if u := os.Getenv("OLLAMA_BASE_URL"); u != "" {
-		return u
+		return strings.TrimSuffix(u, "/")
 	}
-	return "http://localhost:11434/v1"
+	return "http://localhost:11434"
 }
 
-func (m *ollamaModel) Name() string {
-	return m.name
-}
+func (m *ollamaModel) Name() string { return m.name }
 
-// GenerateContent calls the underlying model.
 func (m *ollamaModel) GenerateContent(ctx context.Context, req *model.LLMRequest, stream bool) iter.Seq2[*model.LLMResponse, error] {
 	m.maybeAppendUserContent(req)
-	if req.Config == nil {
-		req.Config = &genai.GenerateContentConfig{}
-	}
-	if req.Config.HTTPOptions == nil {
-		req.Config.HTTPOptions = &genai.HTTPOptions{}
-	}
-	if req.Config.HTTPOptions.Headers == nil {
-		req.Config.HTTPOptions.Headers = make(http.Header)
-	}
-	m.addHeaders(req.Config.HTTPOptions.Headers)
+	modelName := m.modelName(req)
+	messages := convertContentsToMessages(req.Contents)
+	tools := convertTools(req.Config)
 
 	if stream {
-		return m.generateStream(ctx, req)
+		return m.generateStream(ctx, modelName, messages, tools)
 	}
-
 	return func(yield func(*model.LLMResponse, error) bool) {
-		resp, err := m.generate(ctx, req)
+		resp, err := m.generate(ctx, modelName, messages, tools)
 		yield(resp, err)
 	}
 }
 
-// addHeaders sets the x-goog-api-client and user-agent headers
-func (m *ollamaModel) addHeaders(headers http.Header) {
-	headers.Set("x-goog-api-client", m.versionHeaderValue)
-	headers.Set("user-agent", m.versionHeaderValue)
+func (m *ollamaModel) generate(ctx context.Context, modelName string, messages []openAIMessage, tools []openAITool) (*model.LLMResponse, error) {
+	chatReq := openAIChatRequest{
+		Model:    modelName,
+		Messages: messages,
+		Tools:    tools,
+		Stream:   false,
+	}
+
+	body, err := json.Marshal(chatReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/chat/completions", m.baseURL)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := m.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama returned status %d", resp.StatusCode)
+	}
+
+	var chatResp openAIChatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("empty response from ollama")
+	}
+
+	return convertOpenAIResponseToLLMResponse(&chatResp), nil
 }
 
-// modelName returns the model name to use for the API call.
-// It prefers req.Model (which can be set by BeforeModelCallback),
-// falling back to the construction-time name if unset.
+func (m *ollamaModel) generateStream(ctx context.Context, modelName string, messages []openAIMessage, tools []openAITool) iter.Seq2[*model.LLMResponse, error] {
+	aggregator := llminternal.NewStreamingResponseAggregator()
+	return func(yield func(*model.LLMResponse, error) bool) {
+		chatReq := openAIChatRequest{
+			Model:    modelName,
+			Messages: messages,
+			Tools:    tools,
+			Stream:   true,
+		}
+
+		body, err := json.Marshal(chatReq)
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to marshal request: %w", err))
+			return
+		}
+
+		url := fmt.Sprintf("%s/v1/chat/completions", m.baseURL)
+		httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to create request: %w", err))
+			return
+		}
+
+		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("Accept", "text/event-stream")
+
+		resp, err := m.client.Do(httpReq)
+		if err != nil {
+			yield(nil, fmt.Errorf("failed to send request: %w", err))
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			yield(nil, fmt.Errorf("ollama returned status %d", resp.StatusCode))
+			return
+		}
+
+		scanner := bufio.NewScanner(resp.Body)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+
+			data := strings.TrimPrefix(line, "data: ")
+			if data == "[DONE]" {
+				break
+			}
+
+			var streamResp openAIChatStreamResponse
+			if err := json.Unmarshal([]byte(data), &streamResp); err != nil {
+				continue
+			}
+
+			if len(streamResp.Choices) == 0 {
+				continue
+			}
+
+			choice := streamResp.Choices[0]
+			genResp := openAIStreamToGenaiResponse(&streamResp, choice)
+
+			for llmResponse, err := range aggregator.ProcessResponse(ctx, genResp) {
+				if err != nil {
+					yield(nil, err)
+					return
+				}
+				if !yield(llmResponse, nil) {
+					return
+				}
+			}
+
+			if choice.FinishReason != "" {
+				break
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			yield(nil, fmt.Errorf("stream error: %w", err))
+			return
+		}
+
+		if finalResp := aggregator.Close(); finalResp != nil {
+			yield(finalResp, nil)
+		}
+	}
+}
+
 func (m *ollamaModel) modelName(req *model.LLMRequest) string {
 	if req.Model != "" {
 		return req.Model
@@ -141,76 +290,157 @@ func (m *ollamaModel) modelName(req *model.LLMRequest) string {
 	return m.name
 }
 
-// generate calls the model synchronously returning result from the first candidate.
-func (m *ollamaModel) generate(ctx context.Context, req *model.LLMRequest) (*model.LLMResponse, error) {
-	resp, err := m.client.Models.GenerateContent(ctx, m.modelName(req), req.Contents, req.Config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call model: %w", err)
-	}
-	if len(resp.Candidates) == 0 {
-		// shouldn't happen?
-		return nil, fmt.Errorf("empty response")
-	}
-	return converters.Genai2LLMResponse(resp), nil
-}
-
-// generateStream returns a stream of responses from the model.
-func (m *ollamaModel) generateStream(ctx context.Context, req *model.LLMRequest) iter.Seq2[*model.LLMResponse, error] {
-	aggregator := llminternal.NewStreamingResponseAggregator()
-
-	return func(yield func(*model.LLMResponse, error) bool) {
-		for resp, err := range m.client.Models.GenerateContentStream(ctx, m.modelName(req), req.Contents, req.Config) {
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-			for llmResponse, err := range aggregator.ProcessResponse(ctx, resp) {
-				if !yield(llmResponse, err) {
-					return // Consumer stopped
-				}
-			}
-		}
-		if closeResult := aggregator.Close(); closeResult != nil {
-			yield(closeResult, nil)
-		}
-	}
-}
-
-// maybeAppendUserContent appends a user content, so that model can continue to output.
 func (m *ollamaModel) maybeAppendUserContent(req *model.LLMRequest) {
 	if len(req.Contents) == 0 {
 		req.Contents = append(req.Contents, genai.NewContentFromText("Handle the requests as specified in the System Instruction.", "user"))
 	}
-
 	if last := req.Contents[len(req.Contents)-1]; last != nil && last.Role != "user" {
 		req.Contents = append(req.Contents, genai.NewContentFromText("Continue processing previous requests as instructed. Exit or provide a summary if no more outputs are needed.", "user"))
 	}
 }
 
-// mergeHeadersInterceptor is a http.RoundTripper that merges headers from the request
-// with the model's headers before delegating to the base transport.
-type mergeHeadersInterceptor struct {
-	base http.RoundTripper
+func convertContentsToMessages(contents []*genai.Content) []openAIMessage {
+	messages := make([]openAIMessage, 0, len(contents))
+	for _, content := range contents {
+		if content == nil {
+			continue
+		}
+		role := content.Role
+		if role == "model" {
+			role = "assistant"
+		}
+
+		var textParts []string
+		for _, part := range content.Parts {
+			if part.Text != "" {
+				textParts = append(textParts, part.Text)
+			}
+		}
+		if len(textParts) > 0 {
+			messages = append(messages, openAIMessage{
+				Role:    role,
+				Content: strings.Join(textParts, "\n"),
+			})
+		}
+	}
+	return messages
 }
 
-func (h *mergeHeadersInterceptor) RoundTrip(req *http.Request) (*http.Response, error) {
-	for _, headerName := range []string{"x-goog-api-client", "user-agent"} {
-		if values := req.Header.Values(headerName); len(values) > 0 {
-			req.Header.Set(headerName, strings.Join(values, " "))
+func convertTools(cfg *genai.GenerateContentConfig) []openAITool {
+	if cfg == nil || len(cfg.Tools) == 0 {
+		return nil
+	}
+
+	var tools []openAITool
+	for _, tool := range cfg.Tools {
+		if tool == nil {
+			continue
+		}
+		for _, decl := range tool.FunctionDeclarations {
+			if decl == nil {
+				continue
+			}
+			tools = append(tools, convertFunctionDeclaration(decl))
+		}
+	}
+	return tools
+}
+
+func convertFunctionDeclaration(decl *genai.FunctionDeclaration) openAITool {
+	spec := openAIFunctionSpec{
+		Name:        decl.Name,
+		Description: decl.Description,
+	}
+
+	if decl.Parameters != nil {
+		schemaJSON, _ := json.Marshal(decl.Parameters)
+		spec.Parameters = schemaJSON
+	}
+
+	return openAITool{
+		Type:     "function",
+		Function: spec,
+	}
+}
+
+func openAIStreamToGenaiResponse(streamResp *openAIChatStreamResponse, choice streamChoice) *genai.GenerateContentResponse {
+	content := &genai.Content{
+		Role: genai.RoleModel,
+	}
+	if choice.Delta.Content != "" {
+		content.Parts = []*genai.Part{{Text: choice.Delta.Content}}
+	}
+
+	finishReason := genai.FinishReasonUnspecified
+	if choice.FinishReason != "" {
+		finishReason = convertFinishReason(choice.FinishReason)
+	}
+
+	return &genai.GenerateContentResponse{
+		Candidates: []*genai.Candidate{{
+			Content:      content,
+			FinishReason: finishReason,
+		}},
+		ModelVersion: streamResp.Model,
+	}
+}
+
+func convertOpenAIResponseToLLMResponse(resp *openAIChatResponse) *model.LLMResponse {
+	if len(resp.Choices) == 0 {
+		return &model.LLMResponse{
+			ErrorCode:    "EMPTY_RESPONSE",
+			ErrorMessage: "No choices in response",
 		}
 	}
 
-	if h.base == nil {
-		return http.DefaultTransport.RoundTrip(req)
+	choice := resp.Choices[0]
+	content := &genai.Content{
+		Role: "model",
 	}
-	return h.base.RoundTrip(req)
+
+	if choice.Message.Content != "" {
+		content.Parts = append(content.Parts, &genai.Part{Text: choice.Message.Content})
+	}
+
+	for _, tc := range choice.Message.ToolCalls {
+		if tc.Type == "function" {
+			args := make(map[string]any)
+			_ = json.Unmarshal([]byte(tc.Function.Arguments), &args)
+
+			content.Parts = append(content.Parts, &genai.Part{
+				FunctionCall: &genai.FunctionCall{
+					Name: tc.Function.Name,
+					Args: args,
+					ID:   tc.ID,
+				},
+			})
+		}
+	}
+
+	finishReason := convertFinishReason(choice.FinishReason)
+
+	return &model.LLMResponse{
+		Content:      content,
+		FinishReason: finishReason,
+		ModelVersion: resp.Model,
+		UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
+			PromptTokenCount:     int32(resp.Usage.PromptTokens),
+			CandidatesTokenCount: int32(resp.Usage.CompletionTokens),
+			TotalTokenCount:      int32(resp.Usage.TotalTokens),
+		},
+		TurnComplete: true,
+	}
 }
 
-func (m *ollamaModel) GetGoogleLLMVariant() genai.Backend {
-	if m == nil || m.client == nil {
-		return genai.BackendUnspecified
+func convertFinishReason(reason string) genai.FinishReason {
+	switch reason {
+	case "stop":
+		return genai.FinishReasonStop
+	case "length":
+		return genai.FinishReasonMaxTokens
+	case "content_filter":
+		return genai.FinishReasonSafety
+	default:
+		return genai.FinishReasonUnspecified
 	}
-	return m.client.ClientConfig().Backend
 }
-
-var _ googlellm.GoogleLLM = &ollamaModel{}
