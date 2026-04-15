@@ -22,12 +22,12 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
-	"google.golang.org/adk/tool/loadartifactstool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/functiontool"
+	"github.com/rinaldes/adk-go/tool/loadartifactstool"
 )
 
 func generateImage(ctx tool.Context, input generateImageInput) (generateImageResult, error) {

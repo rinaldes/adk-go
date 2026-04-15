@@ -24,12 +24,12 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/workflowagents/sequentialagent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/workflowagents/sequentialagent"
+	"github.com/rinaldes/adk-go/cmd/launcher"
+	"github.com/rinaldes/adk-go/cmd/launcher/full"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/session"
 )
 
 type myAgent struct {

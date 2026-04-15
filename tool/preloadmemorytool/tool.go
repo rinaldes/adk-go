@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/adk/internal/utils"
-	"google.golang.org/adk/memory"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/internal/utils"
+	"github.com/rinaldes/adk-go/memory"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/tool"
 )
 
 const preloadInstructions = `The following content is from your previous conversations with the user.

@@ -27,8 +27,8 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/session/session_test"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/session/session_test"
 )
 
 const (

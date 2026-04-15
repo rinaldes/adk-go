@@ -21,12 +21,12 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/internal/plugininternal/plugincontext"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/internal/plugininternal/plugincontext"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/plugin"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
 )
 
 type PluginConfig struct {

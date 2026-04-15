@@ -21,16 +21,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	icontext "google.golang.org/adk/internal/context"
-	"google.golang.org/adk/internal/testutil"
-	"google.golang.org/adk/internal/toolinternal"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/model/gemini"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/agenttool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	icontext "github.com/rinaldes/adk-go/internal/context"
+	"github.com/rinaldes/adk-go/internal/testutil"
+	"github.com/rinaldes/adk-go/internal/toolinternal"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/model/gemini"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/agenttool"
 )
 
 func TestAgentTool_Declaration(t *testing.T) {

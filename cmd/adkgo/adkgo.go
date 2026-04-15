@@ -16,9 +16,9 @@
 package main
 
 import (
-	_ "google.golang.org/adk/cmd/adkgo/internal/deploy/agentengine"
-	_ "google.golang.org/adk/cmd/adkgo/internal/deploy/cloudrun"
-	"google.golang.org/adk/cmd/adkgo/internal/root"
+	_ "github.com/rinaldes/adk-go/cmd/adkgo/internal/deploy/agentengine"
+	_ "github.com/rinaldes/adk-go/cmd/adkgo/internal/deploy/cloudrun"
+	"github.com/rinaldes/adk-go/cmd/adkgo/internal/root"
 )
 
 func main() {

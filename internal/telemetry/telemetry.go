@@ -29,9 +29,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.36.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"google.golang.org/adk/internal/version"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/internal/version"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/session"
 )
 
 const (

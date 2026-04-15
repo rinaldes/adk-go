@@ -27,13 +27,13 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"google.golang.org/adk/agent"
+	"github.com/rinaldes/adk-go/agent"
 
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/server/adkrest/controllers/triggers"
-	"google.golang.org/adk/server/adkrest/internal/fakes"
-	"google.golang.org/adk/server/adkrest/internal/models"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/runner"
+	"github.com/rinaldes/adk-go/server/adkrest/controllers/triggers"
+	"github.com/rinaldes/adk-go/server/adkrest/internal/fakes"
+	"github.com/rinaldes/adk-go/server/adkrest/internal/models"
+	"github.com/rinaldes/adk-go/session"
 )
 
 var defaultTriggerConfig = triggers.TriggerConfig{

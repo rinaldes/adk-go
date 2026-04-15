@@ -24,13 +24,13 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model/gemini"
-	"google.golang.org/adk/server/adkrest"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/geminitool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	"github.com/rinaldes/adk-go/model/gemini"
+	"github.com/rinaldes/adk-go/server/adkrest"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/geminitool"
 )
 
 func main() {

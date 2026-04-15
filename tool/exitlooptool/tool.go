@@ -18,8 +18,8 @@ package exitlooptool
 import (
 	"fmt"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/functiontool"
 )
 
 func exitLoop(ctx tool.Context, myArgs struct{}) (map[string]string, error) {

@@ -21,14 +21,14 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/model/gemini"
-	"google.golang.org/adk/session/vertexai"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/geminitool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	"github.com/rinaldes/adk-go/cmd/launcher"
+	"github.com/rinaldes/adk-go/cmd/launcher/full"
+	"github.com/rinaldes/adk-go/model/gemini"
+	"github.com/rinaldes/adk-go/session/vertexai"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/geminitool"
 )
 
 const (

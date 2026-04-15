@@ -18,8 +18,8 @@ package telemetry
 import (
 	"context"
 
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/telemetry"
+	"github.com/rinaldes/adk-go/cmd/launcher"
+	"github.com/rinaldes/adk-go/telemetry"
 )
 
 // InitAndSetGlobalOtelProviders initializes telemetry and sets the global OTel providers.

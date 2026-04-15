@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/runner"
+	"github.com/rinaldes/adk-go/plugin"
+	"github.com/rinaldes/adk-go/runner"
 )
 
 func TestNewRuntimeAPIController_PluginsAssignment(t *testing.T) {

@@ -20,9 +20,9 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/internal/configurable"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/internal/configurable"
+	"github.com/rinaldes/adk-go/session"
 )
 
 func beforeAgentCallback1(ctx agent.CallbackContext) (*genai.Content, error) {

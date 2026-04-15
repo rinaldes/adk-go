@@ -21,13 +21,13 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/internal/llminternal/googlellm"
-	"google.golang.org/adk/internal/toolinternal/toolutils"
-	"google.golang.org/adk/internal/utils"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/internal/llminternal/googlellm"
+	"github.com/rinaldes/adk-go/internal/toolinternal/toolutils"
+	"github.com/rinaldes/adk-go/internal/utils"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
 )
 
 const (

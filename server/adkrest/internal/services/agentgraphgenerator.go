@@ -21,10 +21,10 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 
-	"google.golang.org/adk/agent"
-	agentinternal "google.golang.org/adk/internal/agent"
-	llmagentinternal "google.golang.org/adk/internal/llminternal"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/agent"
+	agentinternal "github.com/rinaldes/adk-go/internal/agent"
+	llmagentinternal "github.com/rinaldes/adk-go/internal/llminternal"
+	"github.com/rinaldes/adk-go/tool"
 )
 
 const (

@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"iter"
 
-	"google.golang.org/adk/agent"
-	icontext "google.golang.org/adk/internal/context"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	icontext "github.com/rinaldes/adk-go/internal/context"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/session"
 )
 
 // ContentRequestProcessor populates the LLMRequest's Contents based on

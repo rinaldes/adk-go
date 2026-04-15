@@ -23,11 +23,11 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/internal/testutil"
-	"google.golang.org/adk/internal/toolinternal"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	"github.com/rinaldes/adk-go/internal/testutil"
+	"github.com/rinaldes/adk-go/internal/toolinternal"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/functiontool"
 )
 
 func TestNewLongRunningFunctionTool(t *testing.T) {

@@ -22,12 +22,12 @@ import (
 	"strings"
 	"unicode"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/internal/agent/parentmap"
-	icontext "google.golang.org/adk/internal/context"
-	"google.golang.org/adk/internal/utils"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/internal/agent/parentmap"
+	icontext "github.com/rinaldes/adk-go/internal/context"
+	"github.com/rinaldes/adk-go/internal/utils"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/session"
 )
 
 // TODO: Remove this once state keywords are implemented and replace with those consts

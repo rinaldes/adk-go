@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/session"
 )
 
 // VertexAiSessionService

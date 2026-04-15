@@ -17,7 +17,7 @@ package routers
 import (
 	"net/http"
 
-	"google.golang.org/adk/server/adkrest/controllers"
+	"github.com/rinaldes/adk-go/server/adkrest/controllers"
 )
 
 // ArtifactsAPIRouter defines the routes for the Artifacts API.

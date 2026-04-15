@@ -28,8 +28,8 @@ import (
 	"sync"
 	"text/template"
 
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/plugin"
+	"github.com/rinaldes/adk-go/tool"
 
 	_ "embed"
 )

@@ -21,11 +21,11 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/artifact"
-	artifactinternal "google.golang.org/adk/internal/artifact"
-	icontext "google.golang.org/adk/internal/context"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/artifact"
+	artifactinternal "github.com/rinaldes/adk-go/internal/artifact"
+	icontext "github.com/rinaldes/adk-go/internal/context"
+	"github.com/rinaldes/adk-go/session"
 )
 
 func TestInjectSessionState(t *testing.T) {

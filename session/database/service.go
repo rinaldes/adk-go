@@ -25,7 +25,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/session"
 )
 
 // databaseService is an database implementation of sessionService.Service.

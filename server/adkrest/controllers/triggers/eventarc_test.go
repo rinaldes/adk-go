@@ -26,11 +26,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/server/adkrest/controllers/triggers"
-	"google.golang.org/adk/server/adkrest/internal/fakes"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/runner"
+	"github.com/rinaldes/adk-go/server/adkrest/controllers/triggers"
+	"github.com/rinaldes/adk-go/server/adkrest/internal/fakes"
+	"github.com/rinaldes/adk-go/session"
 )
 
 func TestEventarcTriggerHandler(t *testing.T) {

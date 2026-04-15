@@ -25,16 +25,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	icontext "google.golang.org/adk/internal/context"
-	"google.golang.org/adk/internal/llminternal"
-	"google.golang.org/adk/internal/toolinternal"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin/functioncallmodifier"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/agenttool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/rinaldes/adk-go/agent"
+	icontext "github.com/rinaldes/adk-go/internal/context"
+	"github.com/rinaldes/adk-go/internal/llminternal"
+	"github.com/rinaldes/adk-go/internal/toolinternal"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/plugin/functioncallmodifier"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/agenttool"
+	"github.com/rinaldes/adk-go/tool/functiontool"
 )
 
 type SimpleArgs struct {

@@ -17,8 +17,8 @@ package memory
 import (
 	"context"
 
-	"google.golang.org/adk/memory"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/memory"
+	"github.com/rinaldes/adk-go/session"
 )
 
 type Memory struct {

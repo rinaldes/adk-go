@@ -21,9 +21,9 @@ import (
 	"math"
 	"regexp"
 
-	"google.golang.org/adk/internal/configurable"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/rinaldes/adk-go/internal/configurable"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/functiontool"
 )
 
 type ValidateEmailArgs struct {

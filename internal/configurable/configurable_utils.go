@@ -29,17 +29,17 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/agent/workflowagents/loopagent"
-	"google.golang.org/adk/agent/workflowagents/parallelagent"
-	"google.golang.org/adk/agent/workflowagents/sequentialagent"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/agenttool"
-	"google.golang.org/adk/tool/exampletool"
-	"google.golang.org/adk/tool/exitlooptool"
-	"google.golang.org/adk/tool/geminitool"
-	"google.golang.org/adk/tool/mcptoolset"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/agent/llmagent"
+	"github.com/rinaldes/adk-go/agent/workflowagents/loopagent"
+	"github.com/rinaldes/adk-go/agent/workflowagents/parallelagent"
+	"github.com/rinaldes/adk-go/agent/workflowagents/sequentialagent"
+	"github.com/rinaldes/adk-go/tool"
+	"github.com/rinaldes/adk-go/tool/agenttool"
+	"github.com/rinaldes/adk-go/tool/exampletool"
+	"github.com/rinaldes/adk-go/tool/exitlooptool"
+	"github.com/rinaldes/adk-go/tool/geminitool"
+	"github.com/rinaldes/adk-go/tool/mcptoolset"
 )
 
 type AgentFactory func(ctx context.Context, configBytes []byte, configPath string) (agent.Agent, error)

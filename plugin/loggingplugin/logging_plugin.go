@@ -20,11 +20,11 @@ import (
 
 	"google.golang.org/genai"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	"github.com/rinaldes/adk-go/agent"
+	"github.com/rinaldes/adk-go/model"
+	"github.com/rinaldes/adk-go/plugin"
+	"github.com/rinaldes/adk-go/session"
+	"github.com/rinaldes/adk-go/tool"
 )
 
 // New creates an instance of the logging plugin.

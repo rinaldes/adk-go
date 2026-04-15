@@ -27,11 +27,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/internal/telemetry"
-	"google.golang.org/adk/cmd/launcher/universal"
-	"google.golang.org/adk/internal/cli/util"
-	"google.golang.org/adk/session"
+	"github.com/rinaldes/adk-go/cmd/launcher"
+	"github.com/rinaldes/adk-go/cmd/launcher/internal/telemetry"
+	"github.com/rinaldes/adk-go/cmd/launcher/universal"
+	"github.com/rinaldes/adk-go/internal/cli/util"
+	"github.com/rinaldes/adk-go/session"
 )
 
 // webConfig contains parameters for launching web server

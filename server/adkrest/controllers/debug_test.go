@@ -32,8 +32,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.36.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"google.golang.org/adk/server/adkrest/controllers"
-	"google.golang.org/adk/server/adkrest/internal/services"
+	"github.com/rinaldes/adk-go/server/adkrest/controllers"
+	"github.com/rinaldes/adk-go/server/adkrest/internal/services"
 )
 
 func TestSessionSpansHandler(t *testing.T) {
